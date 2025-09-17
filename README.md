@@ -42,25 +42,6 @@ npm install
 cp .env.example .env
 ```
 
-**`.env`ファイルの編集例：**
-```env
-# 開発段階認証
-DEV_USERNAME=daiki
-DEV_PASSWORD=secret123
-
-# OpenAI API
-OPENAI_API_KEY=sk-proj-your-openai-api-key
-
-# Slack通知
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
-
-# データベース
-DATABASE_URL=postgresql://username:password@localhost:5432/kanji_ai
-
-# アプリURL（本番時）
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
 ### 4. データベースセットアップ
 
 PostgreSQLが起動していることを確認してから：
@@ -83,11 +64,6 @@ npm run dev
 ```
 
 ブラウザで `http://localhost:3000` にアクセス
-
-**Basic認証:**
-- ユーザー名: `daiki`（環境変数で変更可能）
-- パスワード: `secret123`（環境変数で変更可能）
-
 ## 📋 使用手順
 
 ### 1. イベント作成
