@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model Event {
@@ -13,7 +13,7 @@ model Event {
   description String?
   budget    Int?
   location_conditions String?
-  status    EventStatus @default(PLANNING)
+  status    String   @default("PLANNING")
   decided_date DateTime?
   decided_venue String?
   decided_venue_url String?
@@ -76,7 +76,7 @@ model EventVenueOption {
   address     String?
   url         String?
   price_range String?
-  rating      Float?
+  rating      Real?
   is_decided  Boolean @default(false)
 
   // Relations
@@ -88,37 +88,13 @@ model EventVenueOption {
 model SlackNotification {
   id         String @id @default(cuid())
   event_id   String
-  type       NotificationType
+  type       String
   message    String
   sent_at    DateTime @default(now())
-  status     NotificationStatus @default(SENT)
+  status     String @default("SENT")
 
   // Relations
   event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
 
   @@map("slack_notifications")
-}
-
-enum EventStatus {
-  PLANNING
-  DATE_VOTING
-  VENUE_SELECTION
-  CONFIRMED
-  COMPLETED
-  CANCELLED
-}
-
-enum NotificationType {
-  EVENT_CREATED
-  DATE_VOTING_REMINDER
-  DATE_DECIDED
-  VENUE_SELECTED
-  FINAL_REMINDER
-  PAYMENT_REQUEST
-}
-
-enum NotificationStatus {
-  PENDING
-  SENT
-  FAILED
 }
