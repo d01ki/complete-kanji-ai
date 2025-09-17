@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  title     String
+  description String?
+  budget    Int?
+  location_conditions String?
+  status    EventStatus @default(PLANNING)
+  decided_date DateTime?
+  decided_venue String?
+  decided_venue_url String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  date_options EventDateOption[]
+  participants EventParticipant[]
+  venue_options EventVenueOption[]
+  notifications SlackNotification[]
+
+  @@map("events")
+}
+
+model EventDateOption {
+  id       String   @id @default(cuid())
+  event_id String
+  date     DateTime
+  votes    Int      @default(0)
+
+  // Relations
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  date_votes DateVote[]
+
+  @@map("event_date_options")
+}
+
+model DateVote {
+  id                String   @id @default(cuid())
+  date_option_id    String
+  participant_slack_id String
+  created_at        DateTime @default(now())
+
+  // Relations
+  date_option EventDateOption @relation(fields: [date_option_id], references: [id], onDelete: Cascade)
+
+  @@unique([date_option_id, participant_slack_id])
+  @@map("date_votes")
+}
+
+model EventParticipant {
+  id       String @id @default(cuid())
+  event_id String
+  slack_id String
+  name     String
+  email    String?
+
+  // Relations
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@unique([event_id, slack_id])
+  @@map("event_participants")
+}
+
+model EventVenueOption {
+  id          String @id @default(cuid())
+  event_id    String
+  name        String
+  address     String?
+  url         String?
+  price_range String?
+  rating      Float?
+  is_decided  Boolean @default(false)
+
+  // Relations
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@map("event_venue_options")
+}
+
+model SlackNotification {
+  id         String @id @default(cuid())
+  event_id   String
+  type       NotificationType
+  message    String
+  sent_at    DateTime @default(now())
+  status     NotificationStatus @default(SENT)
+
+  // Relations
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@map("slack_notifications")
+}
+
+enum EventStatus {
+  PLANNING
+  DATE_VOTING
+  VENUE_SELECTION
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  EVENT_CREATED
+  DATE_VOTING_REMINDER
+  DATE_DECIDED
+  VENUE_SELECTED
+  FINAL_REMINDER
+  PAYMENT_REQUEST
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
