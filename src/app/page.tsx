@@ -1,18 +1,43 @@
 import Link from 'next/link'
-import { prisma } from '@/lib/prisma'
 import { PlusIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline'
 
-export default async function HomePage() {
-  // 最新のイベント一覧を取得
-  const events = await prisma.event.findMany({
-    orderBy: { created_at: 'desc' },
-    take: 10,
-    include: {
-      participants: true,
-      date_options: true,
-    }
-  })
+// ダミーデータ
+const dummyEvents = [
+  {
+    id: '1',
+    title: '新年会2025',
+    description: 'チーム新年会を開催します',
+    status: 'DATE_VOTING',
+    participants: [
+      { name: '田中', slack_id: '@tanaka' },
+      { name: '佐藤', slack_id: '@sato' },
+      { name: '鈴木', slack_id: '@suzuki' }
+    ],
+    date_options: [
+      { date: '2025-01-15 19:00' },
+      { date: '2025-01-16 19:00' }
+    ],
+    created_at: '2024-12-20T10:00:00Z',
+    budget: 5000
+  },
+  {
+    id: '2',
+    title: '歓送迎会',
+    description: '新メンバー歓迎会',
+    status: 'VENUE_SELECTION',
+    participants: [
+      { name: '山田', slack_id: '@yamada' },
+      { name: '高橋', slack_id: '@takahashi' }
+    ],
+    date_options: [
+      { date: '2025-02-10 18:30' }
+    ],
+    created_at: '2024-12-18T14:00:00Z',
+    budget: 4000
+  }
+]
 
+export default function HomePage() {
   const getStatusText = (status: string) => {
     const statusMap = {
       PLANNING: '企画中',
@@ -58,7 +83,7 @@ export default async function HomePage() {
             <CalendarIcon className="w-8 h-8 text-primary-600" />
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">総イベント数</p>
-              <p className="text-2xl font-bold text-gray-900">{events.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{dummyEvents.length}</p>
             </div>
           </div>
         </div>
@@ -68,7 +93,7 @@ export default async function HomePage() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">進行中</p>
               <p className="text-2xl font-bold text-gray-900">
-                {events.filter(e => ['PLANNING', 'DATE_VOTING', 'VENUE_SELECTION'].includes(e.status)).length}
+                {dummyEvents.filter(e => ['PLANNING', 'DATE_VOTING', 'VENUE_SELECTION'].includes(e.status)).length}
               </p>
             </div>
           </div>
@@ -81,7 +106,7 @@ export default async function HomePage() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">完了</p>
               <p className="text-2xl font-bold text-gray-900">
-                {events.filter(e => e.status === 'COMPLETED').length}
+                {dummyEvents.filter(e => e.status === 'COMPLETED').length}
               </p>
             </div>
           </div>
@@ -91,50 +116,41 @@ export default async function HomePage() {
       {/* イベント一覧 */}
       <div className="card">
         <h2 className="text-xl font-bold text-gray-900 mb-4">最近のイベント</h2>
-        {events.length === 0 ? (
-          <div className="text-center py-12">
-            <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">まだイベントがありません</p>
-            <Link href="/events/create" className="btn-primary">
-              最初のイベントを作成
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {events.map((event) => (
-              <div key={event.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        <Link href={`/events/${event.id}`} className="hover:text-primary-600">
-                          {event.title}
-                        </Link>
-                      </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
-                        {getStatusText(event.status)}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-2">{event.description}</p>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>参加者: {event.participants.length}名</span>
-                      <span>日程候補: {event.date_options.length}件</span>
-                      <span>作成: {new Date(event.created_at).toLocaleDateString('ja-JP')}</span>
-                    </div>
+        <div className="space-y-4">
+          {dummyEvents.map((event) => (
+            <div key={event.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      <Link href={`/events/${event.id}`} className="hover:text-primary-600">
+                        {event.title}
+                      </Link>
+                    </h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
+                      {getStatusText(event.status)}
+                    </span>
                   </div>
-                  <div className="ml-4">
-                    <Link 
-                      href={`/events/${event.id}`}
-                      className="text-primary-600 hover:text-primary-800 text-sm font-medium"
-                    >
-                      詳細 →
-                    </Link>
+                  <p className="text-gray-600 text-sm mb-2">{event.description}</p>
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
+                    <span>参加者: {event.participants.length}名</span>
+                    <span>日程候補: {event.date_options.length}件</span>
+                    <span>予算: ¥{event.budget?.toLocaleString()}/人</span>
+                    <span>作成: {new Date(event.created_at).toLocaleDateString('ja-JP')}</span>
                   </div>
                 </div>
+                <div className="ml-4">
+                  <Link 
+                    href={`/events/${event.id}`}
+                    className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                  >
+                    詳細 →
+                  </Link>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
