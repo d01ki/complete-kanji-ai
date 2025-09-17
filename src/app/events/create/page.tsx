@@ -85,27 +85,21 @@ export default function CreateEventPage() {
         return
       }
 
-      const response = await fetch('/api/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          budget: budget ? parseInt(budget) : null,
-          locationConditions,
-          dateOptions: validDateOptions,
-          participants: validParticipants,
-        }),
+      // TODO: 実際のAPI呼び出しの代わりにダミー処理
+      console.log('イベント作成データ:', {
+        title,
+        description,
+        budget: budget ? parseInt(budget) : null,
+        locationConditions,
+        dateOptions: validDateOptions,
+        participants: validParticipants,
       })
 
-      if (!response.ok) {
-        throw new Error('イベントの作成に失敗しました')
-      }
-
-      const event = await response.json()
-      router.push(`/events/${event.id}`)
+      // ダミーレスポンス
+      const dummyEventId = 'event-' + Date.now()
+      
+      alert('イベントが作成されました！（ダミー実装）')
+      router.push(`/events/${dummyEventId}`)
     } catch (error) {
       alert(error instanceof Error ? error.message : '予期しないエラーが発生しました')
     } finally {
@@ -289,7 +283,7 @@ export default function CreateEventPage() {
             className="btn-primary"
             disabled={loading || !title}
           >
-            {loading ? '作成中...' : 'イベント作成 & Slack通知'}
+            {loading ? '作成中...' : 'イベント作成（ダミー）'}
           </button>
         </div>
       </form>
