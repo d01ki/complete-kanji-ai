@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { sendSlackNotification, createEventCreatedMessage } from '@/lib/slack'
+import { createEvent, getAllEvents } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { title, description, budget, locationConditions, dateOptions, participants } = body
 
-    // バリデーション
     if (!title || !dateOptions?.length || !participants?.length) {
       return NextResponse.json(
         { error: 'タイトル、日程候補、参加者は必須です' },
@@ -15,64 +13,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // イベント作成
-    const event = await prisma.event.create({
-      data: {
-        title,
-        description,
-        budget,
-        location_conditions: locationConditions,
-        status: 'DATE_VOTING',
-        // 日程候補
-        date_options: {
-          create: dateOptions.map((option: any) => ({
-            date: new Date(`${option.date}T${option.time}`),
-          }))
-        },
-        // 参加者
-        participants: {
-          create: participants.map((participant: any) => ({
-            slack_id: participant.slackId,
-            name: participant.name,
-            email: participant.email || null,
-          }))
-        }
-      },
-      include: {
-        date_options: true,
-        participants: true,
-      }
+    const event = await createEvent({
+      title,
+      description: description || '',
+      budget: budget ? parseInt(budget) : undefined,
+      location_conditions: locationConditions || '',
+      status: 'DATE_VOTING',
+      date_options: dateOptions.map((option: any) => ({
+        id: `date_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        date: `${option.date}T${option.time}`,
+        votes: 0,
+        voter_ids: []
+      })),
+      participants: participants.map((participant: any, index: number) => ({
+        id: `part_${Date.now()}_${index}`,
+        slack_id: participant.slackId,
+        name: participant.name,
+        email: participant.email || ''
+      })),
+      venue_options: [],
+      notifications: [{
+        id: `notif_${Date.now()}`,
+        type: 'EVENT_CREATED',
+        message: `イベント「${title}」が作成されました`,
+        sent_at: new Date().toISOString(),
+        status: 'SENT'
+      }]
     })
-
-    // Slack通知
-    try {
-      const dateOptionsText = dateOptions.map((opt: any) => {
-        const date = new Date(`${opt.date}T${opt.time}`)
-        return date.toLocaleString('ja-JP', {
-          month: 'numeric',
-          day: 'numeric',
-          weekday: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      })
-
-      const slackMessage = createEventCreatedMessage(title, dateOptionsText, event.id)
-      await sendSlackNotification(slackMessage)
-
-      // 通知ログをDBに保存
-      await prisma.slackNotification.create({
-        data: {
-          event_id: event.id,
-          type: 'EVENT_CREATED',
-          message: slackMessage.text,
-          status: 'SENT',
-        }
-      })
-    } catch (slackError) {
-      console.error('Slack notification failed:', slackError)
-      // Slack通知失敗してもイベント作成は成功とする
-    }
 
     return NextResponse.json(event)
   } catch (error) {
@@ -86,15 +53,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const events = await prisma.event.findMany({
-      orderBy: { created_at: 'desc' },
-      include: {
-        participants: true,
-        date_options: true,
-        venue_options: true,
-      }
-    })
-
+    const events = await getAllEvents()
     return NextResponse.json(events)
   } catch (error) {
     console.error('Events fetch failed:', error)
