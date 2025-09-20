@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getEventById, addVenueOption } from '@/lib/db'
+import { getAIRecommendedRestaurants } from '@/lib/tabelog'
 
 interface Params {
   params: { id: string }
@@ -16,41 +17,33 @@ export async function POST(request: NextRequest, { params }: Params) {
       )
     }
 
-    // OpenAI APIキーがない場合やシンプルな実装としてダミーデータを使用
-    const locations = event.location_conditions?.toLowerCase() || '新宿'
-    const budgetRange = event.budget ? `¥${event.budget - 1000}-${event.budget + 1000}` : '¥4000-6000'
-    
-    const dummyVenues = [
-      {
-        name: `${locations}駅前 個室居酒屋 龍`,
-        address: `東京都${locations}周辺`,
-        price_range: budgetRange,
-        rating: 4.2,
-        url: 'https://tabelog.com/example1'
-      },
-      {
-        name: `${locations} 和風ダイニング 雅`,
-        address: `東京都${locations}周辺`,
-        price_range: budgetRange,
-        rating: 4.5,
-        url: 'https://tabelog.com/example2'
-      },
-      {
-        name: `${locations} プライベートダイニング 蔦`,
-        address: `東京都${locations}周辺`,
-        price_range: budgetRange,
-        rating: 4.7,
-        url: 'https://tabelog.com/example3'
-      }
-    ]
+    // AI推薦を使って実在する店舗を取得
+    const restaurants = await getAIRecommendedRestaurants({
+      title: event.title,
+      participants: event.participants.length,
+      budget: event.budget,
+      location: event.location_conditions || '新宿',
+      preferences: event.description || ''
+    })
 
     const createdVenues = []
-    for (const venue of dummyVenues) {
+    for (const restaurant of restaurants) {
+      const venue = {
+        name: restaurant.name,
+        address: restaurant.address,
+        price_range: restaurant.price_range,
+        rating: restaurant.rating,
+        url: restaurant.url
+      }
+      
       const created = await addVenueOption(event.id, venue)
       if (created) createdVenues.push(created)
     }
 
-    return NextResponse.json({ venues: createdVenues })
+    return NextResponse.json({ 
+      venues: createdVenues,
+      message: `${createdVenues.length}件の実在するお店を提案しました` 
+    })
   } catch (error) {
     console.error('AI venue recommendation failed:', error)
     return NextResponse.json(
