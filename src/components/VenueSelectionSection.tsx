@@ -2,24 +2,14 @@
 
 import { useState } from 'react'
 import { MapPinIcon, SparklesIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
-import { useRouter } from 'next/navigation'
-
-interface VenueOption {
-  id: string
-  name: string
-  address?: string | null
-  url?: string | null
-  price_range?: string | null
-  rating?: number | null
-}
+import type { Event } from '@/lib/db'
 
 interface Props {
-  event: any
-  venueOptions: VenueOption[]
+  event: Event
+  onUpdate: () => void
 }
 
-export default function VenueSelectionSection({ event, venueOptions }: Props) {
-  const router = useRouter()
+export default function VenueSelectionSection({ event, onUpdate }: Props) {
   const [loading, setLoading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [selectedVenue, setSelectedVenue] = useState<string | null>(null)
@@ -35,7 +25,7 @@ export default function VenueSelectionSection({ event, venueOptions }: Props) {
       if (!response.ok) throw new Error('AI提案の取得に失敗しました')
 
       alert('AI会場提案を取得しました！')
-      router.refresh()
+      onUpdate()
     } catch (error) {
       alert(error instanceof Error ? error.message : '予期しないエラーが発生しました')
     } finally {
@@ -60,7 +50,7 @@ export default function VenueSelectionSection({ event, venueOptions }: Props) {
       if (!response.ok) throw new Error('会場の決定に失敗しました')
 
       alert('会場が決定されました！イベントが確定しました🎉')
-      router.refresh()
+      onUpdate()
     } catch (error) {
       alert(error instanceof Error ? error.message : '予期しないエラーが発生しました')
     } finally {
@@ -86,14 +76,14 @@ export default function VenueSelectionSection({ event, venueOptions }: Props) {
           </button>
         </div>
 
-        {venueOptions.length === 0 ? (
+        {event.venue_options.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 mb-4">まだ会場候補がありません</p>
             <p className="text-sm text-gray-400">AI会場提案ボタンで候補を取得できます</p>
           </div>
         ) : (
           <div className="space-y-3 mb-6">
-            {venueOptions.map((venue) => {
+            {event.venue_options.map((venue) => {
               const isSelected = selectedVenue === venue.id
               return (
                 <button
@@ -134,7 +124,7 @@ export default function VenueSelectionSection({ event, venueOptions }: Props) {
           </div>
         )}
 
-        {venueOptions.length > 0 && (
+        {event.venue_options.length > 0 && (
           <button
             onClick={handleDecideVenue}
             disabled={!selectedVenue || loading}
