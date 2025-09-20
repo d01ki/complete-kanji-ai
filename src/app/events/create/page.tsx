@@ -19,7 +19,6 @@ export default function CreateEventPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   
-  // フォーム状態
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [budget, setBudget] = useState('')
@@ -70,38 +69,45 @@ export default function CreateEventPage() {
     setLoading(true)
 
     try {
-      // 有効な日程候補のみフィルタ
       const validDateOptions = dateOptions.filter(opt => opt.date && opt.time)
-      // 有効な参加者のみフィルタ
       const validParticipants = participants.filter(p => p.slackId && p.name)
 
       if (validDateOptions.length === 0) {
         alert('日程候補を最低1つ入力してください')
+        setLoading(false)
         return
       }
 
       if (validParticipants.length === 0) {
         alert('参加者を最低1人入力してください')
+        setLoading(false)
         return
       }
 
-      // TODO: 実際のAPI呼び出しの代わりにダミー処理
-      console.log('イベント作成データ:', {
-        title,
-        description,
-        budget: budget ? parseInt(budget) : null,
-        locationConditions,
-        dateOptions: validDateOptions,
-        participants: validParticipants,
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          budget: budget ? parseInt(budget) : null,
+          locationConditions,
+          dateOptions: validDateOptions,
+          participants: validParticipants,
+        }),
       })
 
-      // ダミーレスポンス
-      const dummyEventId = 'event-' + Date.now()
-      
-      alert('イベントが作成されました！（ダミー実装）')
-      router.push(`/events/${dummyEventId}`)
+      if (!response.ok) {
+        throw new Error('イベントの作成に失敗しました')
+      }
+
+      const event = await response.json()
+      alert('イベントが作成されました！')
+      router.push(`/events/${event.id}`)
     } catch (error) {
-      alert(error instanceof Error ? error.message : '予期しないエラーが発生しました')
+      alert(error instanceof Error ? error.message : 'エラーが発生しました')
     } finally {
       setLoading(false)
     }
@@ -110,14 +116,13 @@ export default function CreateEventPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">新規イベント作成</h1>
+        <h1 className="text-3xl font-bold">新規イベント作成</h1>
         <p className="text-gray-600 mt-2">イベントの詳細情報を入力してください</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* 基本情報 */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">基本情報</h2>
+          <h2 className="text-xl font-semibold mb-4">基本情報</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -141,7 +146,7 @@ export default function CreateEventPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 className="input-field"
                 rows={3}
-                placeholder="イベントの詳細や注意事項など"
+                placeholder="イベントの詳細"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -166,17 +171,16 @@ export default function CreateEventPage() {
                   value={locationConditions}
                   onChange={(e) => setLocationConditions(e.target.value)}
                   className="input-field"
-                  placeholder="例: 新宿駅周辺、個室あり"
+                  placeholder="例: 新宿駅周辺"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* 日程候補 */}
         <div className="card">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">日程候補</h2>
+            <h2 className="text-xl font-semibold">日程候補</h2>
             <button
               type="button"
               onClick={addDateOption}
@@ -215,10 +219,9 @@ export default function CreateEventPage() {
           </div>
         </div>
 
-        {/* 参加者 */}
         <div className="card">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">参加者</h2>
+            <h2 className="text-xl font-semibold">参加者</h2>
             <button
               type="button"
               onClick={addParticipant}
@@ -251,7 +254,7 @@ export default function CreateEventPage() {
                     value={participant.email}
                     onChange={(e) => updateParticipant(index, 'email', e.target.value)}
                     className="input-field flex-1"
-                    placeholder="メールアドレス（任意）"
+                    placeholder="メール（任意）"
                   />
                   {participants.length > 1 && (
                     <button
@@ -268,7 +271,6 @@ export default function CreateEventPage() {
           </div>
         </div>
 
-        {/* 送信ボタン */}
         <div className="flex justify-end gap-4">
           <button
             type="button"
@@ -283,7 +285,7 @@ export default function CreateEventPage() {
             className="btn-primary"
             disabled={loading || !title}
           >
-            {loading ? '作成中...' : 'イベント作成（ダミー）'}
+            {loading ? '作成中...' : 'イベント作成'}
           </button>
         </div>
       </form>
