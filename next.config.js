@@ -1,14 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: true,
+  reactStrictMode: true,
+  // パフォーマンス最適化
+  swcMinify: true,
+  // 画像最適化
+  images: {
+    domains: ['tabelog.com'],
   },
-  env: {
-    DEV_USERNAME: process.env.DEV_USERNAME,
-    DEV_PASSWORD: process.env.DEV_PASSWORD,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    SLACK_WEBHOOK_URL: process.env.SLACK_WEBHOOK_URL,
-    DATABASE_URL: process.env.DATABASE_URL,
+  // ビルド最適化
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // ファイルシステムキャッシュを無効化（開発時の高速化）
+  experimental: {
+    isrMemoryCacheSize: 0,
   },
 }
 

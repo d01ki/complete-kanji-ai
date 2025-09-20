@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -27,9 +25,6 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
-.env.development
-.env.staging
-.env.production
 
 # vercel
 .vercel
@@ -38,26 +33,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-/prisma/*.db
-/prisma/*.db-journal
-/prisma/migrations
+# database
+/data/*.json
 
-# logs
-logs
-*.log
-
-# API keys and secrets
-*.key
-*.pem
-secrets/
-.secrets
-
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
-Thumbs.db
+# turbo
+.turbo

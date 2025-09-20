@@ -1,66 +1,32 @@
-import Link from 'next/link'
-import { PlusIcon, CalendarIcon, MapPinIcon, UserGroupIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+'use client'
 
-// ダミーデータ
-const dummyEvents = [
-  {
-    id: '1',
-    title: '新年会2025',
-    description: 'チーム新年会を開催します',
-    status: 'DATE_VOTING',
-    participants: [
-      { name: '田中', slack_id: '@tanaka' },
-      { name: '佐藤', slack_id: '@sato' },
-      { name: '鈴木', slack_id: '@suzuki' },
-      { name: '山田', slack_id: '@yamada' }
-    ],
-    date_options: [
-      { date: '2025-01-15 19:00', votes: 3 },
-      { date: '2025-01-16 19:00', votes: 1 }
-    ],
-    created_at: '2024-12-20T10:00:00Z',
-    budget: 5000,
-    location_conditions: '新宿駅周辺、個室あり'
-  },
-  {
-    id: '2',
-    title: '歓送迎会',
-    description: '新メンバー歓迎会',
-    status: 'VENUE_SELECTION',
-    participants: [
-      { name: '山田', slack_id: '@yamada' },
-      { name: '高橋', slack_id: '@takahashi' },
-      { name: '伊藤', slack_id: '@ito' }
-    ],
-    date_options: [
-      { date: '2025-02-10 18:30', votes: 3 }
-    ],
-    created_at: '2024-12-18T14:00:00Z',
-    budget: 4000,
-    decided_date: '2025-02-10 18:30'
-  },
-  {
-    id: '3',
-    title: 'プロジェクト打ち上げ',
-    description: 'Q4プロジェクト成功祝い',
-    status: 'CONFIRMED',
-    participants: [
-      { name: '佐藤', slack_id: '@sato' },
-      { name: '田中', slack_id: '@tanaka' }
-    ],
-    date_options: [
-      { date: '2025-01-20 19:00', votes: 2 }
-    ],
-    created_at: '2024-12-15T09:00:00Z',
-    budget: 6000,
-    decided_date: '2025-01-20 19:00',
-    decided_venue: '新宿 個室居酒屋 龍'
-  }
-]
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { PlusIcon, CalendarIcon, MapPinIcon, UserGroupIcon, ClockIcon, CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import type { Event } from '@/lib/db'
 
 export default function HomePage() {
+  const [events, setEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchEvents()
+  }, [])
+
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events')
+      const data = await response.json()
+      setEvents(data)
+    } catch (error) {
+      console.error('Failed to fetch events:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getStatusText = (status: string) => {
-    const statusMap = {
+    const statusMap: Record<string, string> = {
       PLANNING: '企画中',
       DATE_VOTING: '日程調整中',
       VENUE_SELECTION: '会場選び中',
@@ -68,19 +34,19 @@ export default function HomePage() {
       COMPLETED: '完了',
       CANCELLED: 'キャンセル'
     }
-    return statusMap[status as keyof typeof statusMap] || status
+    return statusMap[status] || status
   }
 
   const getStatusColor = (status: string) => {
-    const colorMap = {
-      PLANNING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      DATE_VOTING: 'bg-blue-100 text-blue-800 border-blue-200',
-      VENUE_SELECTION: 'bg-purple-100 text-purple-800 border-purple-200',
-      CONFIRMED: 'bg-green-100 text-green-800 border-green-200',
-      COMPLETED: 'bg-gray-100 text-gray-800 border-gray-200',
-      CANCELLED: 'bg-red-100 text-red-800 border-red-200'
+    const colorMap: Record<string, string> = {
+      PLANNING: 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white',
+      DATE_VOTING: 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white',
+      VENUE_SELECTION: 'bg-gradient-to-r from-purple-400 to-pink-400 text-white',
+      CONFIRMED: 'bg-gradient-to-r from-green-400 to-emerald-400 text-white',
+      COMPLETED: 'bg-gradient-to-r from-gray-400 to-slate-400 text-white',
+      CANCELLED: 'bg-gradient-to-r from-red-400 to-rose-400 text-white'
     }
-    return colorMap[status as keyof typeof colorMap] || 'bg-gray-100 text-gray-800 border-gray-200'
+    return colorMap[status] || 'bg-gray-100 text-gray-800'
   }
 
   const getStatusIcon = (status: string) => {
@@ -92,7 +58,7 @@ export default function HomePage() {
     }
   }
 
-  const getNextAction = (event: any) => {
+  const getNextAction = (event: Event) => {
     switch(event.status) {
       case 'DATE_VOTING': return '投票を集計して日程決定'
       case 'VENUE_SELECTION': return 'AI会場提案で場所を決定'
@@ -101,150 +67,182 @@ export default function HomePage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
+          <div className="w-16 h-16 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0"></div>
+        </div>
+        <p className="mt-4 text-gray-600 font-medium">読み込み中...</p>
+      </div>
+    )
+  }
+
   return (
     <div>
-      {/* ヘッダー */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-8">
-        <div className="mb-4 lg:mb-0">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">ダッシュボード</h1>
-          <p className="text-gray-600 text-lg">イベントの管理・作成ができます</p>
+      {/* ヒーローセクション */}
+      <div className="text-center mb-12">
+        <div className="inline-block mb-6">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full blur-2xl opacity-30 animate-pulse"></div>
+            <SparklesIcon className="relative w-20 h-20 text-blue-600 animate-float" />
+          </div>
         </div>
-        <Link href="/events/create" className="btn-primary flex items-center justify-center gap-2 px-6 py-3 text-lg font-semibold">
+        <h1 className="text-5xl font-bold mb-4">
+          <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            イベント管理を
+          </span>
+          <br />
+          <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent">
+            もっと簡単に
+          </span>
+        </h1>
+        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          AIが日程調整から会場提案まで自動化。
+          <br />幹事の負担を90%削減します。
+        </p>
+        <Link href="/events/create" className="btn-primary inline-flex items-center gap-3 text-lg pulse-glow">
           <PlusIcon className="w-6 h-6" />
           新規イベント作成
         </Link>
       </div>
 
       {/* 統計カード */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-500 rounded-full">
-              <CalendarIcon className="w-8 h-8 text-white" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="card bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 mb-2">総イベント数</p>
+              <p className="text-4xl font-bold">{events.length}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-blue-800">総イベント数</p>
-              <p className="text-3xl font-bold text-blue-900">{dummyEvents.length}</p>
-            </div>
+            <CalendarIcon className="w-12 h-12 text-blue-200" />
           </div>
         </div>
         
-        <div className="card bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-500 rounded-full">
-              <ClockIcon className="w-8 h-8 text-white" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-yellow-800">進行中</p>
-              <p className="text-3xl font-bold text-yellow-900">
-                {dummyEvents.filter(e => ['PLANNING', 'DATE_VOTING', 'VENUE_SELECTION'].includes(e.status)).length}
+        <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white border-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-yellow-100 mb-2">進行中</p>
+              <p className="text-4xl font-bold">
+                {events.filter(e => ['PLANNING', 'DATE_VOTING', 'VENUE_SELECTION'].includes(e.status)).length}
               </p>
             </div>
+            <ClockIcon className="w-12 h-12 text-yellow-200" />
           </div>
         </div>
         
-        <div className="card bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-500 rounded-full">
-              <CheckCircleIcon className="w-8 h-8 text-white" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-green-800">確定済み</p>
-              <p className="text-3xl font-bold text-green-900">
-                {dummyEvents.filter(e => e.status === 'CONFIRMED').length}
+        <div className="card bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 mb-2">確定済み</p>
+              <p className="text-4xl font-bold">
+                {events.filter(e => e.status === 'CONFIRMED').length}
               </p>
             </div>
+            <CheckCircleIcon className="w-12 h-12 text-green-200" />
           </div>
         </div>
       </div>
 
       {/* イベント一覧 */}
       <div className="card">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">最近のイベント</h2>
-          <div className="flex gap-2">
-            <button className="btn-secondary text-sm">すべて表示</button>
-            <button className="btn-secondary text-sm">進行中のみ</button>
-          </div>
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+            イベント一覧
+          </h2>
         </div>
         
-        <div className="grid gap-6">
-          {dummyEvents.map((event) => (
-            <div key={event.id} className="border-2 border-gray-100 rounded-xl p-6 hover:border-primary-200 hover:shadow-lg transition-all duration-200">
-              {/* イベントヘッダー */}
-              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-xl font-bold text-gray-900">
-                      {event.title}
-                    </h3>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(event.status)} flex items-center gap-1`}>
-                      {getStatusIcon(event.status)}
-                      {getStatusText(event.status)}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-4">{event.description}</p>
-                </div>
-                <div className="flex gap-2 mt-4 lg:mt-0">
-                  <Link 
-                    href={`/events/${event.id}`}
-                    className="btn-primary text-sm px-4 py-2"
-                  >
-                    詳細・操作
-                  </Link>
-                </div>
-              </div>
-
-              {/* イベント詳細情報 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <UserGroupIcon className="w-4 h-4" />
-                  <span className="font-medium">{event.participants.length}名参加</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CalendarIcon className="w-4 h-4" />
-                  {event.decided_date ? (
-                    <span className="font-medium text-green-600">
-                      {new Date(event.decided_date).toLocaleDateString('ja-JP', {
-                        month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                      })}
-                    </span>
-                  ) : (
-                    <span>{event.date_options.length}件候補</span>
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span className="font-bold text-green-600">¥</span>
-                  <span className="font-medium">¥{event.budget?.toLocaleString()}/人</span>
-                </div>
-                
-                {event.decided_venue ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPinIcon className="w-4 h-4" />
-                    <span className="font-medium text-green-600">{event.decided_venue}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPinIcon className="w-4 h-4" />
-                    <span>{event.location_conditions || '場所未定'}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* 次のアクション */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <span className="text-sm text-gray-500">
-                  次のステップ: <span className="font-medium text-gray-700">{getNextAction(event)}</span>
-                </span>
-                <span className="text-xs text-gray-400">
-                  作成: {new Date(event.created_at).toLocaleDateString('ja-JP')}
-                </span>
-              </div>
+        {events.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="inline-block p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full mb-4">
+              <CalendarIcon className="w-16 h-16 text-blue-500" />
             </div>
-          ))}
-        </div>
+            <p className="text-gray-600 text-lg mb-6">まだイベントがありません</p>
+            <Link href="/events/create" className="btn-primary inline-flex items-center gap-2">
+              <PlusIcon className="w-5 h-5" />
+              最初のイベントを作成
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {events.map((event) => (
+              <div key={event.id} className="group relative bg-gradient-to-r from-white to-gray-50 rounded-2xl p-6 border-2 border-gray-100 hover:border-blue-200 hover:shadow-xl transition-all duration-300">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                
+                <div className="relative">
+                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-2xl font-bold text-gray-900">{event.title}</h3>
+                        <span className={`badge ${getStatusColor(event.status)} flex items-center gap-1`}>
+                          {getStatusIcon(event.status)}
+                          {getStatusText(event.status)}
+                        </span>
+                      </div>
+                      <p className="text-gray-600">{event.description}</p>
+                    </div>
+                    <Link 
+                      href={`/events/${event.id}`}
+                      className="btn-primary mt-4 lg:mt-0 inline-flex items-center gap-2"
+                    >
+                      詳細を見る
+                      <SparklesIcon className="w-4 h-4" />
+                    </Link>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <UserGroupIcon className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">参加者</p>
+                        <p className="font-bold text-gray-900">{event.participants.length}名</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <CalendarIcon className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">日程</p>
+                        <p className="font-bold text-gray-900">
+                          {event.decided_date ? '決定済み' : `${event.date_options.length}候補`}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <span className="text-purple-600 font-bold text-lg">¥</span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">予算</p>
+                        <p className="font-bold text-gray-900">
+                          {event.budget ? `¥${event.budget.toLocaleString()}` : '未設定'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-orange-100 rounded-lg">
+                        <MapPinIcon className="w-5 h-5 text-orange-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">会場</p>
+                        <p className="font-bold text-gray-900">
+                          {event.decided_venue ? '決定済み' : '未定'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
