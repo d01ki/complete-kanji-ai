@@ -2,29 +2,61 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { CalendarIcon, UserGroupIcon, CurrencyYenIcon, MapPinIcon } from '@heroicons/react/24/outline'
-import DateVotingSection from '@/components/DateVotingSection'
-import VenueSelectionSection from '@/components/VenueSelectionSection'
-import type { Event } from '@/lib/db'
+import Link from 'next/link'
+import { ArrowLeftIcon, CalendarIcon, MapPinIcon, UserGroupIcon, SparklesIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+
+interface Event {
+  id: string
+  title: string
+  description?: string
+  budget?: number
+  location_conditions?: string
+  status: string
+  decided_date?: string
+  decided_venue?: string
+  date_options: DateOption[]
+  participants: Participant[]
+  venue_options: VenueOption[]
+}
+
+interface DateOption {
+  id: string
+  date: string
+  votes: number
+  date_votes: { participant_slack_id: string }[]
+}
+
+interface Participant {
+  id: string
+  slack_id: string
+  name: string
+  email?: string
+}
+
+interface VenueOption {
+  id: string
+  name: string
+  address?: string
+  price_range?: string
+  rating?: number
+}
 
 export default function EventDetailPage() {
   const params = useParams()
+  const eventId = params.id as string
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
+  const [currentParticipant, setCurrentParticipant] = useState<string>('')
 
   useEffect(() => {
-    if (params.id) {
-      fetchEvent()
-    }
-  }, [params.id])
+    fetchEvent()
+  }, [eventId])
 
   const fetchEvent = async () => {
     try {
-      const response = await fetch(`/api/events/${params.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setEvent(data)
-      }
+      const response = await fetch(`/api/events/${eventId}`)
+      const data = await response.json()
+      setEvent(data)
     } catch (error) {
       console.error('Failed to fetch event:', error)
     } finally {
@@ -32,219 +64,324 @@ export default function EventDetailPage() {
     }
   }
 
-  const refreshEvent = () => {
-    fetchEvent()
+  const handleVote = async (dateOptionId: string) => {
+    if (!currentParticipant) {
+      alert('参加者を選択してください')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dateOptionId,
+          participantSlackId: currentParticipant,
+        }),
+      })
+
+      if (response.ok) {
+        fetchEvent()
+      }
+    } catch (error) {
+      console.error('Vote failed:', error)
+      alert('投票に失敗しました')
+    }
   }
 
-  const getStatusText = (status: string) => {
-    const statusMap: Record<string, string> = {
-      PLANNING: '企画中',
-      DATE_VOTING: '日程調整中',
-      VENUE_SELECTION: '会場選び中',
-      CONFIRMED: '確定済み',
-      COMPLETED: '完了',
-      CANCELLED: 'キャンセル'
+  const handleDecideDate = async (dateOptionId: string) => {
+    if (!confirm('この日程で決定しますか?')) return
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/vote`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decidedDateOptionId: dateOptionId }),
+      })
+
+      if (response.ok) {
+        fetchEvent()
+        alert('日程が決定しました！')
+      }
+    } catch (error) {
+      console.error('Decide date failed:', error)
+      alert('日程決定に失敗しました')
     }
-    return statusMap[status] || status
   }
 
-  const getStatusColor = (status: string) => {
-    const colorMap: Record<string, string> = {
-      PLANNING: 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white',
-      DATE_VOTING: 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white',
-      VENUE_SELECTION: 'bg-gradient-to-r from-purple-400 to-pink-400 text-white',
-      CONFIRMED: 'bg-gradient-to-r from-green-400 to-emerald-400 text-white',
-      COMPLETED: 'bg-gradient-to-r from-gray-400 to-slate-400 text-white',
-      CANCELLED: 'bg-gradient-to-r from-red-400 to-rose-400 text-white'
+  const handleGenerateVenues = async () => {
+    if (!confirm('AIに会場を提案させますか?')) return
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/venues`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (response.ok) {
+        fetchEvent()
+        alert('会場が提案されました！')
+      }
+    } catch (error) {
+      console.error('Generate venues failed:', error)
+      alert('会場提案に失敗しました')
     }
-    return colorMap[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  const handleDecideVenue = async (venueId: string, venueName: string) => {
+    if (!confirm(`${venueName}で決定しますか?`)) return
+
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decided_venue: venueName,
+          status: 'CONFIRMED',
+        }),
+      })
+
+      if (response.ok) {
+        fetchEvent()
+        alert('会場が決定しました！')
+      }
+    } catch (error) {
+      console.error('Decide venue failed:', error)
+      alert('会場決定に失敗しました')
+    }
   }
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-blue-200 rounded-full"></div>
-          <div className="w-16 h-16 border-4 border-blue-600 rounded-full animate-spin border-t-transparent absolute top-0"></div>
-        </div>
-        <p className="mt-4 text-gray-600 font-medium">読み込み中...</p>
+      <div className="flex justify-center items-center h-64">
+        <div className="text-gray-600">読み込み中...</div>
       </div>
     )
   }
 
   if (!event) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <div className="text-gray-500 mb-4 text-xl font-semibold">イベントが見つかりません</div>
-        <a href="/" className="btn-primary">ホームに戻る</a>
+      <div className="text-center py-12">
+        <p className="text-gray-600">イベントが見つかりません</p>
+        <Link href="/" className="btn-primary mt-4 inline-block">
+          ホームに戻る
+        </Link>
       </div>
     )
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-            {event.title}
-          </h1>
-          <span className={`badge ${getStatusColor(event.status)}`}>
-            {getStatusText(event.status)}
+    <div>
+      <Link href="/" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
+        <ArrowLeftIcon className="w-5 h-5" />
+        イベント一覧に戻る
+      </Link>
+
+      <div className="card mb-8">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">{event.title}</h1>
+            <p className="text-gray-600">{event.description}</p>
+          </div>
+          <span className={`badge ${
+            event.status === 'CONFIRMED' ? 'bg-green-500 text-white' :
+            event.status === 'VENUE_SELECTION' ? 'bg-purple-500 text-white' :
+            'bg-blue-500 text-white'
+          }`}>
+            {event.status === 'DATE_VOTING' ? '日程調整中' :
+             event.status === 'VENUE_SELECTION' ? '会場選び中' :
+             event.status === 'CONFIRMED' ? '確定済み' : event.status}
           </span>
         </div>
-        {event.description && (
-          <p className="text-gray-600 text-lg">{event.description}</p>
-        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex items-center gap-3">
+            <UserGroupIcon className="w-6 h-6 text-blue-600" />
+            <div>
+              <p className="text-sm text-gray-600">参加者</p>
+              <p className="font-bold">{event.participants.length}名</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">💰</span>
+            <div>
+              <p className="text-sm text-gray-600">予算</p>
+              <p className="font-bold">
+                {event.budget ? `¥${event.budget.toLocaleString()}` : '未設定'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <MapPinIcon className="w-6 h-6 text-orange-600" />
+            <div>
+              <p className="text-sm text-gray-600">会場条件</p>
+              <p className="font-bold">{event.location_conditions || '未設定'}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          {event.status === 'DATE_VOTING' && (
-            <DateVotingSection 
-              event={event}
-              onUpdate={refreshEvent}
-            />
-          )}
+      {event.status === 'CONFIRMED' && (
+        <div className="card mb-8 bg-green-50 border-green-200">
+          <div className="flex items-center gap-3 mb-4">
+            <CheckCircleIcon className="w-8 h-8 text-green-600" />
+            <h2 className="text-2xl font-bold text-green-900">イベント確定</h2>
+          </div>
+          <div className="space-y-3">
+            <p className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-green-600" />
+              <span className="font-bold">日時:</span>
+              {event.decided_date && new Date(event.decided_date).toLocaleString('ja-JP')}
+            </p>
+            <p className="flex items-center gap-2">
+              <MapPinIcon className="w-5 h-5 text-green-600" />
+              <span className="font-bold">会場:</span>
+              {event.decided_venue}
+            </p>
+          </div>
+        </div>
+      )}
 
-          {event.status === 'VENUE_SELECTION' && (
-            <VenueSelectionSection 
-              event={event}
-              onUpdate={refreshEvent}
-            />
-          )}
+      {event.status === 'DATE_VOTING' && (
+        <div className="card mb-8">
+          <h2 className="text-2xl font-bold mb-6">日程調整</h2>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">あなたの名前を選択</label>
+            <select
+              value={currentParticipant}
+              onChange={(e) => setCurrentParticipant(e.target.value)}
+              className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">選択してください</option>
+              {event.participants.map((p) => (
+                <option key={p.id} value={p.slack_id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {event.status === 'CONFIRMED' && (
-            <div className="card">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">🎉 イベント確定</h2>
-              <div className="space-y-6">
-                {event.decided_date && (
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-blue-100 rounded-xl">
-                      <CalendarIcon className="w-6 h-6 text-blue-600" />
-                    </div>
+          <div className="space-y-4">
+            {event.date_options.map((option) => {
+              const hasVoted = currentParticipant && option.date_votes.some(
+                (v) => v.participant_slack_id === currentParticipant
+              )
+              
+              return (
+                <div key={option.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                  <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-semibold text-gray-900 mb-1">確定日時</p>
-                      <p className="text-lg text-gray-600">
-                        {new Date(event.decided_date).toLocaleString('ja-JP', {
-                          year: 'numeric',
-                          month: 'numeric',
+                      <p className="font-bold text-lg">
+                        {new Date(option.date).toLocaleString('ja-JP', {
+                          month: 'long',
                           day: 'numeric',
-                          weekday: 'long',
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
                       </p>
+                      <p className="text-sm text-gray-600">{option.votes}票</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleVote(option.id)}
+                        className={`px-4 py-2 rounded-lg font-medium ${
+                          hasVoted
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {hasVoted ? '投票済み' : '投票する'}
+                      </button>
+                      <button
+                        onClick={() => handleDecideDate(option.id)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+                      >
+                        この日程に決定
+                      </button>
                     </div>
                   </div>
-                )}
-                {event.decided_venue && (
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-purple-100 rounded-xl">
-                      <MapPinIcon className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900 mb-1">確定会場</p>
-                      <p className="text-lg text-gray-600 mb-2">{event.decided_venue}</p>
-                      {event.decided_venue_url && (
-                        <a 
-                          href={event.decided_venue_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          詳細を見る →
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="card">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">📢 通知履歴</h2>
-            {event.notifications.length === 0 ? (
-              <p className="text-gray-500">通知履歴がありません</p>
-            ) : (
-              <div className="space-y-3">
-                {event.notifications.map((notification) => (
-                  <div key={notification.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-semibold text-gray-900">
-                        {notification.type}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(notification.sent_at).toLocaleString('ja-JP')}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">{notification.message}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+                </div>
+              )
+            })}
           </div>
         </div>
+      )}
 
-        <div className="space-y-6">
-          <div className="card">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6">イベント情報</h3>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <UserGroupIcon className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">参加者</p>
-                  <p className="font-semibold text-gray-900">{event.participants.length}名</p>
-                </div>
-              </div>
-              {event.budget && (
-                <div className="flex items-center gap-3">
-                  <CurrencyYenIcon className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">予算</p>
-                    <p className="font-semibold text-gray-900">¥{event.budget.toLocaleString()}/人</p>
-                  </div>
-                </div>
-              )}
-              {event.location_conditions && (
-                <div className="flex items-center gap-3">
-                  <MapPinIcon className="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-500">場所の条件</p>
-                    <p className="font-semibold text-gray-900">{event.location_conditions}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-3">
-                <CalendarIcon className="w-5 h-5 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-500">作成日</p>
-                  <p className="font-semibold text-gray-900">
-                    {new Date(event.created_at).toLocaleDateString('ja-JP')}
-                  </p>
-                </div>
-              </div>
-            </div>
+      {event.status === 'VENUE_SELECTION' && (
+        <div className="card">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">会場選択</h2>
+            {event.venue_options.length === 0 && (
+              <button
+                onClick={handleGenerateVenues}
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <SparklesIcon className="w-5 h-5" />
+                AI会場提案を生成
+              </button>
+            )}
           </div>
 
-          <div className="card">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6">参加者一覧</h3>
-            <div className="space-y-3">
-              {event.participants.map((participant) => (
-                <div key={participant.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">
-                      {participant.name.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900">{participant.name}</p>
-                    <p className="text-xs text-gray-500">{participant.slack_id}</p>
+          {event.venue_options.length === 0 ? (
+            <div className="text-center py-12 text-gray-600">
+              <SparklesIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+              <p>まだ会場が提案されていません</p>
+              <p className="text-sm">AIに会場を提案させましょう</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {event.venue_options.map((venue) => (
+                <div key={venue.id} className="border border-gray-200 rounded-lg p-6 hover:border-purple-300 transition-colors">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-xl font-bold mb-2">{venue.name}</h3>
+                      {venue.address && (
+                        <p className="text-gray-600 mb-1">
+                          📍 {venue.address}
+                        </p>
+                      )}
+                      {venue.price_range && (
+                        <p className="text-gray-600 mb-1">
+                          💰 {venue.price_range}
+                        </p>
+                      )}
+                      {venue.rating && (
+                        <p className="text-gray-600">
+                          ⭐ {venue.rating}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDecideVenue(venue.id, venue.name)}
+                      className="btn-primary"
+                    >
+                      この会場に決定
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          )}
+        </div>
+      )}
+
+      <div className="card mt-8">
+        <h2 className="text-2xl font-bold mb-4">参加者一覧</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {event.participants.map((participant) => (
+            <div key={participant.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                {participant.name[0]}
+              </div>
+              <div>
+                <p className="font-medium">{participant.name}</p>
+                {participant.email && (
+                  <p className="text-sm text-gray-600">{participant.email}</p>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
