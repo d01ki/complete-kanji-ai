@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.db"
+  url      = env("DATABASE_URL")
 }
 
 model Event {
@@ -76,7 +76,7 @@ model EventVenueOption {
   address     String?
   url         String?
   price_range String?
-  rating      Real?
+  rating      Float?
   is_decided  Boolean @default(false)
 
   // Relations
