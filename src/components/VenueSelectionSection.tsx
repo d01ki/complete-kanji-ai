@@ -1,239 +1,140 @@
 'use client'
 
 import { useState } from 'react'
-import { StarIcon, MapPinIcon, CurrencyYenIcon, LinkIcon } from '@heroicons/react/24/outline'
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
-
-interface VenueOption {
-  id: string
-  name: string
-  address?: string
-  url?: string
-  price_range?: string
-  rating?: number
-  is_decided: boolean
-}
-
-interface Event {
-  id: string
-  title: string
-  budget?: number
-  location_conditions?: string
-}
+import { MapPinIcon, SparklesIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import type { Event } from '@/lib/db'
 
 interface Props {
   event: Event
-  venueOptions: VenueOption[]
+  onUpdate: () => void
 }
 
-export default function VenueSelectionSection({ event, venueOptions }: Props) {
+export default function VenueSelectionSection({ event, onUpdate }: Props) {
   const [loading, setLoading] = useState(false)
-  const [generatingAI, setGeneratingAI] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [selectedVenue, setSelectedVenue] = useState<string | null>(null)
 
-  const generateAIVenues = async () => {
-    setGeneratingAI(true)
+  const handleAIRecommendation = async () => {
+    setAiLoading(true)
     try {
-      const response = await fetch(`/api/events/${event.id}/generate-venues`, {
+      const response = await fetch(`/api/events/${event.id}/ai-venues`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
       })
 
-      if (!response.ok) {
-        throw new Error('AI会場提案の生成に失敗しました')
-      }
+      if (!response.ok) throw new Error('AI提案の取得に失敗しました')
 
-      // ページをリロード
-      window.location.reload()
+      alert('AI会場提案を取得しました！')
+      onUpdate()
     } catch (error) {
-      alert(error instanceof Error ? error.message : '予期しないエラーが発生しました')
+      alert(error instanceof Error ? error.message : 'エラーが発生しました')
     } finally {
-      setGeneratingAI(false)
+      setAiLoading(false)
     }
   }
 
-  const selectVenue = async (venueId: string) => {
-    if (!confirm('この会場に決定しますか？')) {
+  const handleDecideVenue = async () => {
+    if (!selectedVenue) {
+      alert('会場を選択してください')
       return
     }
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/events/${event.id}/select-venue`, {
+      const response = await fetch(`/api/events/${event.id}/decide-venue`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ venueId }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ venueOptionId: selectedVenue })
       })
 
-      if (!response.ok) {
-        throw new Error('会場選択に失敗しました')
-      }
+      if (!response.ok) throw new Error('会場の決定に失敗しました')
 
-      // ページをリロード
-      window.location.reload()
+      alert('会場が決定されました！🎉')
+      onUpdate()
     } catch (error) {
-      alert(error instanceof Error ? error.message : '予期しないエラーが発生しました')
+      alert(error instanceof Error ? error.message : 'エラーが発生しました')
     } finally {
       setLoading(false)
     }
   }
 
-  const renderStars = (rating?: number) => {
-    if (!rating) return null
-    
-    const stars = []
-    const fullStars = Math.floor(rating)
-    const hasHalfStar = rating % 1 !== 0
-    
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-yellow-400" />)
-    }
-    
-    if (hasHalfStar) {
-      stars.push(<StarIcon key="half" className="w-4 h-4 text-yellow-400" />)
-    }
-    
-    const emptyStars = 5 - Math.ceil(rating)
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(<StarIcon key={`empty-${i}`} className="w-4 h-4 text-gray-300" />)
-    }
-    
-    return (
-      <div className="flex items-center gap-1">
-        {stars}
-        <span className="text-sm text-gray-600 ml-1">{rating}</span>
-      </div>
-    )
-  }
-
   return (
     <div className="card">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">🍽️ 会場選択</h2>
-        <div className="flex gap-3">
-          <button
-            onClick={generateAIVenues}
-            disabled={generatingAI}
-            className="btn-secondary"
-          >
-            {generatingAI ? 'AI提案中...' : '🤖 AI会場提案'}
-          </button>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <MapPinIcon className="w-6 h-6 text-purple-600" />
+          <h2 className="text-xl font-semibold text-gray-900">会場選択</h2>
         </div>
+        <button
+          onClick={handleAIRecommendation}
+          disabled={aiLoading}
+          type="button"
+          className="btn-secondary flex items-center gap-2"
+        >
+          <SparklesIcon className="w-4 h-4" />
+          {aiLoading ? 'AI提案中...' : 'AI会場提案'}
+        </button>
       </div>
 
-      {/* 検索条件表示 */}
-      <div className="mb-6 p-4 bg-purple-50 rounded-lg">
-        <h3 className="font-medium text-purple-900 mb-2">検索条件</h3>
-        <div className="text-sm text-purple-800 space-y-1">
-          {event.budget && (
-            <p>💰 予算: ¥{event.budget.toLocaleString()}/人</p>
-          )}
-          {event.location_conditions && (
-            <p>📍 条件: {event.location_conditions}</p>
-          )}
-        </div>
-      </div>
-
-      {/* 会場候補一覧 */}
-      {venueOptions.length === 0 ? (
-        <div className="text-center py-12">
-          <MapPinIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+      {event.venue_options.length === 0 ? (
+        <div className="text-center py-8">
           <p className="text-gray-500 mb-4">まだ会場候補がありません</p>
-          <button
-            onClick={generateAIVenues}
-            disabled={generatingAI}
-            className="btn-primary"
-          >
-            {generatingAI ? 'AI提案中...' : '🤖 AI会場提案を開始'}
-          </button>
+          <p className="text-sm text-gray-400">AI会場提案ボタンで候補を取得できます</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {venueOptions.map((venue) => (
-            <div 
-              key={venue.id}
-              className={`border rounded-lg p-5 transition-all ${
-                venue.is_decided 
-                  ? 'border-green-300 bg-green-50' 
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {venue.name}
-                    </h3>
-                    {venue.is_decided && (
-                      <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                        決定済み
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
+        <div className="space-y-3 mb-6">
+          {event.venue_options.map((venue) => {
+            const isSelected = selectedVenue === venue.id
+            return (
+              <button
+                key={venue.id}
+                onClick={() => setSelectedVenue(venue.id)}
+                type="button"
+                className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                  isSelected
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{venue.name}</p>
                     {venue.address && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <MapPinIcon className="w-4 h-4" />
-                        <span>{venue.address}</span>
-                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{venue.address}</p>
                     )}
-                    
-                    {venue.price_range && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <CurrencyYenIcon className="w-4 h-4" />
-                        <span>{venue.price_range}</span>
-                      </div>
-                    )}
-                    
-                    {venue.rating && (
-                      <div className="flex items-center gap-2">
-                        {renderStars(venue.rating)}
-                      </div>
-                    )}
-                    
-                    {venue.url && (
-                      <div className="flex items-center gap-2">
-                        <LinkIcon className="w-4 h-4 text-gray-500" />
-                        <a 
-                          href={venue.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary-600 hover:text-primary-800 text-sm"
-                        >
-                          詳細を見る →
-                        </a>
-                      </div>
-                    )}
+                    <div className="flex gap-3 mt-2">
+                      {venue.price_range && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                          {venue.price_range}
+                        </span>
+                      )}
+                      {venue.rating && (
+                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                          ★ {venue.rating}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="ml-4">
-                  {!venue.is_decided && (
-                    <button
-                      onClick={() => selectVenue(venue.id)}
-                      disabled={loading}
-                      className="btn-primary"
-                    >
-                      {loading ? '選択中...' : 'この会場に決定'}
-                    </button>
+                  {isSelected && (
+                    <CheckCircleIcon className="w-5 h-5 text-purple-600 ml-3" />
                   )}
                 </div>
-              </div>
-            </div>
-          ))}
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {/* 操作ガイド */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h3 className="font-medium text-gray-900 mb-2">操作ガイド</h3>
-        <ul className="text-sm text-gray-600 space-y-1">
-          <li>• 🤖 AI会場提案ボタンで、条件に合った会場をAIが自動提案します</li>
-          <li>• 各会場の「この会場に決定」ボタンで最終決定できます</li>
-          <li>• 決定後はSlackで参加者に通知されます</li>
-        </ul>
-      </div>
+      {event.venue_options.length > 0 && (
+        <button
+          onClick={handleDecideVenue}
+          disabled={!selectedVenue || loading}
+          type="button"
+          className="btn-primary w-full"
+        >
+          {loading ? '決定中...' : 'この会場で確定'}
+        </button>
+      )}
     </div>
   )
 }
