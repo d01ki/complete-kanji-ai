@@ -69,6 +69,7 @@ export default function VenueSelectionSection({ event, onUpdate }: Props) {
           <button
             onClick={handleAIRecommendation}
             disabled={aiLoading}
+            type="button"
             className="btn-secondary flex items-center gap-2"
           >
             <SparklesIcon className="w-4 h-4" />
@@ -89,6 +90,7 @@ export default function VenueSelectionSection({ event, onUpdate }: Props) {
                 <button
                   key={venue.id}
                   onClick={() => setSelectedVenue(venue.id)}
+                  type="button"
                   className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                     isSelected
                       ? 'border-purple-500 bg-purple-50'
@@ -128,6 +130,7 @@ export default function VenueSelectionSection({ event, onUpdate }: Props) {
           <button
             onClick={handleDecideVenue}
             disabled={!selectedVenue || loading}
+            type="button"
             className="btn-primary w-full"
           >
             {loading ? '決定中...' : 'この会場で確定'}
