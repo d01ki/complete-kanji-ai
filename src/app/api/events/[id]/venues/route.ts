@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { generateVenueSuggestions } from '@/lib/openai'
+import { recommendVenuesWithAgent } from '@/lib/ai-agent'
 
 export async function POST(
   request: NextRequest,
@@ -23,7 +23,7 @@ export async function POST(
       )
     }
 
-    const suggestions = await generateVenueSuggestions(
+    const recommendations = await recommendVenuesWithAgent(
       event.title,
       event.budget ?? undefined,
       event.participants.length,
@@ -31,13 +31,15 @@ export async function POST(
     )
 
     const venueOptions = await Promise.all(
-      suggestions.map((suggestion) =>
+      recommendations.venues.map((venue) =>
         prisma.eventVenueOption.create({
           data: {
             event_id: eventId,
-            name: suggestion.name,
-            address: suggestion.address,
-            price_range: suggestion.priceRange,
+            name: venue.name,
+            address: venue.address,
+            price_range: venue.budget,
+            rating: venue.rating,
+            url: venue.url,
           },
         })
       )
@@ -51,7 +53,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       venues: venueOptions,
-      suggestions,
+      reasoning: recommendations.reasoning,
     })
   } catch (error) {
     console.error('Venue suggestion error:', error)
