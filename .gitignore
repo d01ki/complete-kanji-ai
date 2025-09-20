@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -37,8 +35,6 @@ next-env.d.ts
 
 # database
 /data/*.json
-/prisma/*.db
-/prisma/*.db-journal
 
 # IDE
 .vscode/
@@ -46,3 +42,6 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# turbo
+.turbo
