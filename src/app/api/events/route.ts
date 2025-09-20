@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createEvent, getAllEvents } from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,32 +13,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const event = await createEvent({
-      title,
-      description: description || '',
-      budget: budget ? parseInt(budget) : undefined,
-      location_conditions: locationConditions || '',
-      status: 'DATE_VOTING',
-      date_options: dateOptions.map((option: any) => ({
-        id: `date_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        date: `${option.date}T${option.time}`,
-        votes: 0,
-        voter_ids: []
-      })),
-      participants: participants.map((participant: any, index: number) => ({
-        id: `part_${Date.now()}_${index}`,
-        slack_id: participant.slackId,
-        name: participant.name,
-        email: participant.email || ''
-      })),
-      venue_options: [],
-      notifications: [{
-        id: `notif_${Date.now()}`,
-        type: 'EVENT_CREATED',
-        message: `イベント「${title}」が作成されました`,
-        sent_at: new Date().toISOString(),
-        status: 'SENT'
-      }]
+    const event = await prisma.event.create({
+      data: {
+        title,
+        description: description || '',
+        budget: budget ? parseInt(budget) : null,
+        location_conditions: locationConditions || '',
+        status: 'DATE_VOTING',
+        date_options: {
+          create: dateOptions.map((option: any) => ({
+            date: new Date(`${option.date}T${option.time}`),
+            votes: 0,
+          })),
+        },
+        participants: {
+          create: participants.map((participant: any) => ({
+            slack_id: participant.slackId,
+            name: participant.name,
+            email: participant.email || null,
+          })),
+        },
+        notifications: {
+          create: {
+            type: 'EVENT_CREATED',
+            message: `イベント「${title}」が作成されました`,
+            status: 'SENT',
+          },
+        },
+      },
+      include: {
+        date_options: true,
+        participants: true,
+        venue_options: true,
+        notifications: true,
+      },
     })
 
     return NextResponse.json(event)
@@ -53,7 +61,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const events = await getAllEvents()
+    const events = await prisma.event.findMany({
+      include: {
+        date_options: true,
+        participants: true,
+        venue_options: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    })
+
     return NextResponse.json(events)
   } catch (error) {
     console.error('Events fetch failed:', error)
